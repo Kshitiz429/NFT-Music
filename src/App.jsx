@@ -164,10 +164,10 @@ function App() {
     const fetchOwned = async () => {
       if (user?.id) {
         const [ownedRes, mintedRes] = await Promise.all([
-           // Fetch assets currently owned by this user
-           supabase.from('nfts').select('*').eq('current_owner_id', user.id),
+           // Fetch assets currently owned by this user (exclude re-listed ones that went back to market)
+           supabase.from('nfts').select(`*, artists ( artist_name, profile_image )`).eq('current_owner_id', user.id),
            // Fetch assets minted by this user
-           supabase.from('nfts').select('*').eq('artist_id', user.id)
+           supabase.from('nfts').select(`*, artists ( artist_name, profile_image )`).eq('artist_id', user.id)
         ]);
         
         setOwnedNftsStore(ownedRes.data || []);

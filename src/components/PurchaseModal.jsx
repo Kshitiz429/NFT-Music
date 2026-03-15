@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const PLATFORM_FEE_PERCENT = 3;
 const EXCHANGE_RATE = 1;
 
-export default function PurchaseModal({ isOpen, onClose, track }) {
+export default function PurchaseModal({ isOpen, onClose, track, onPurchaseSuccess }) {
   const user = useStore(state => state.user);
   const addOwnedNft = useStore(state => state.addOwnedNft);
   const navigate = useNavigate();
@@ -100,6 +100,7 @@ export default function PurchaseModal({ isOpen, onClose, track }) {
       // 4. Update local store
       addOwnedNft({ ...track, current_owner_id: user.id });
       setIsSuccess(true);
+      if (onPurchaseSuccess) onPurchaseSuccess(track.nft_id);
     } catch (err) {
       alert('Purchase failed: ' + err.message);
     } finally {

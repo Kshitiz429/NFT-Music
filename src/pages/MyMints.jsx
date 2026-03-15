@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import useStore from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { getWalletBalance } from '../lib/blockchain';
+import ResellModal from '../components/ResellModal';
 
 const pageVariants = {
   initial: { opacity: 0, scale: 0.98 },
@@ -16,8 +17,13 @@ export default function MyMints() {
   const isInitializing = useStore((state) => state.isInitializing);
   const logout = useStore((state) => state.logout);
   const mintedNfts = useStore((state) => state.mintedNfts);
+  const updateMintedNft = useStore((state) => state.updateMintedNft);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState('0.00');
+
+  // Resell modal state
+  const [resellTarget, setResellTarget] = useState(null);
+  const [isResellOpen, setIsResellOpen] = useState(false);
 
   useEffect(() => {
     const fetchBalanceAndSync = async () => {
@@ -48,7 +54,17 @@ export default function MyMints() {
 
   if (isInitializing || !user) return null;
 
+  const handleResellClick = (nft) => {
+    setResellTarget(nft);
+    setIsResellOpen(true);
+  };
+
+  const handleResellSuccess = (updatedNft) => {
+    updateMintedNft(updatedNft);
+  };
+
   return (
+    <>
     <motion.div
       initial="initial" animate="in" exit="out" variants={pageVariants}
       className="max-w-7xl mx-auto px-10 py-16 pb-32"
@@ -120,6 +136,14 @@ export default function MyMints() {
               <div key={nft.nft_id} className="group glass-panel p-5 rounded-[2.5rem] border border-white/5 hover:bg-white/5 hover:border-primary/20 transition-all duration-500">
                 <div className="aspect-square rounded-[2rem] overflow-hidden mb-6 bg-black relative shadow-2xl">
                   <img src={nft.ipfs_cover_hash} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" alt={nft.song_title} />
+                  
+                  {/* Listed badge */}
+                  {nft.is_listed && (
+                    <div className="absolute top-4 left-4 px-3 py-1 bg-primary/90 text-black font-label text-[8px] font-black rounded-full uppercase tracking-tighter shadow-[0_0_15px_rgba(255,107,0,0.5)]">
+                      Listed
+                    </div>
+                  )}
+                  
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                      <button 
                       onClick={(e) => {
@@ -134,12 +158,28 @@ export default function MyMints() {
                      </button>
                   </div>
                 </div>
-                <div className="px-2">
+                <div className="px-2 mb-4">
                   <h4 className="font-headline font-bold text-xl text-white mb-1 group-hover:text-primary transition-colors truncate">{nft.song_title}</h4>
                   <p className="text-[10px] text-outline font-label uppercase tracking-widest font-bright">
                      {nft.genre || 'Soundscape'} • ID: {nft.nft_id.toString().slice(0,8)}
                   </p>
+                  <p className="text-[10px] text-white/30 font-label uppercase tracking-widest mt-1">
+                     Price: <span className="text-white/60 font-black">{nft.price} {nft.currency || 'HLUSD'}</span>
+                  </p>
                 </div>
+
+                {/* Resell / Re-List Button */}
+                <button
+                  onClick={() => handleResellClick(nft)}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-[10px] font-label uppercase tracking-widest font-black transition-all duration-300 ${
+                    nft.is_listed
+                      ? 'bg-orange-500/20 border-primary/40 text-primary hover:bg-primary/20'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-primary/10 hover:border-primary/30 hover:text-primary'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sell</span>
+                  {nft.is_listed ? 'Update Listing Price' : 'List for Resale'}
+                </button>
               </div>
             ))}
           </div>
@@ -157,5 +197,14 @@ export default function MyMints() {
         )}
       </section>
     </motion.div>
+
+    {/* Resell Modal */}
+    <ResellModal
+      isOpen={isResellOpen}
+      onClose={() => { setIsResellOpen(false); setResellTarget(null); }}
+      nft={resellTarget}
+      onResellSuccess={handleResellSuccess}
+    />
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import useStore from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { getWalletBalance } from '../lib/blockchain';
+import ResellModal from '../components/ResellModal';
 
 const pageVariants = {
   initial: { opacity: 0, scale: 0.98 },
@@ -56,8 +57,8 @@ async function downloadTrack(nft, setStatus) {
   }
 }
 
-// ─── Individual Vault Card with download ─────────────────────────────────────
-function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay }) {
+// ─── Individual Vault Card with download + resell ────────────────────────────
+function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay, onResellClick }) {
   const [dlStatus, setDlStatus] = useState('idle'); // idle | downloading | done | error
 
   const isActive = currentTrack?.nft_id === nft.nft_id;
@@ -85,6 +86,8 @@ function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay }) {
     },
   }[dlStatus];
 
+  const isListed = nft.is_listed;
+
   return (
     <div className="group glass-panel p-5 rounded-[2.5rem] border border-white/5 hover:bg-white/5 hover:border-primary/20 transition-all duration-500">
       {/* Cover Art */}
@@ -94,6 +97,12 @@ function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay }) {
           className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
           alt={nft.song_title}
         />
+        {/* Listed badge */}
+        {isListed && (
+          <div className="absolute top-4 left-4 px-3 py-1 bg-primary/90 text-black font-label text-[8px] font-black rounded-full uppercase tracking-tighter shadow-[0_0_15px_rgba(255,107,0,0.5)]">
+            Listed for Sale
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button
             onClick={(e) => {
@@ -119,25 +128,44 @@ function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay }) {
         </p>
       </div>
 
-      {/* Download Button */}
-      <button
-        onClick={() => {
-          if (dlStatus === 'idle' || dlStatus === 'error') {
-            downloadTrack(nft, setDlStatus);
-          }
-        }}
-        disabled={dlStatus === 'downloading' || dlStatus === 'done'}
-        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-[10px] font-label uppercase tracking-widest font-black transition-all duration-300 ${dlConfig.className}`}
-      >
-        {dlStatus === 'downloading' ? (
-          <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        ) : (
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        {/* Download Button */}
+        <button
+          onClick={() => {
+            if (dlStatus === 'idle' || dlStatus === 'error') {
+              downloadTrack(nft, setDlStatus);
+            }
+          }}
+          disabled={dlStatus === 'downloading' || dlStatus === 'done'}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-[10px] font-label uppercase tracking-widest font-black transition-all duration-300 ${dlConfig.className}`}
+        >
+          {dlStatus === 'downloading' ? (
+            <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
+              {dlConfig.icon}
+            </span>
+          )}
+          {dlConfig.label}
+        </button>
+
+        {/* Resell Button */}
+        <button
+          onClick={() => onResellClick(nft)}
+          className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border text-[10px] font-label uppercase tracking-widest font-black transition-all duration-300 ${
+            isListed
+              ? 'bg-orange-500/20 border-primary/40 text-primary hover:bg-primary/30'
+              : 'bg-white/5 border-white/10 text-white/60 hover:bg-primary/10 hover:border-primary/30 hover:text-primary'
+          }`}
+          title={isListed ? 'Update listing price' : 'List for resale'}
+        >
           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-            {dlConfig.icon}
+            sell
           </span>
-        )}
-        {dlConfig.label}
-      </button>
+          {isListed ? 'Edit Price' : 'Resell'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -147,8 +175,13 @@ export default function Vault() {
   const isInitializing = useStore((state) => state.isInitializing);
   const logout = useStore((state) => state.logout);
   const ownedNfts = useStore((state) => state.ownedNfts);
+  const updateOwnedNft = useStore((state) => state.updateOwnedNft);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState('0.00');
+
+  // Resell modal state
+  const [resellTarget, setResellTarget] = useState(null);
+  const [isResellOpen, setIsResellOpen] = useState(false);
 
   useEffect(() => {
     const fetchBalanceAndSync = async () => {
@@ -179,7 +212,17 @@ export default function Vault() {
 
   if (isInitializing || !user) return null;
 
+  const handleResellClick = (nft) => {
+    setResellTarget(nft);
+    setIsResellOpen(true);
+  };
+
+  const handleResellSuccess = (updatedNft) => {
+    updateOwnedNft(updatedNft);
+  };
+
   return (
+    <>
     <motion.div
       initial="initial" animate="in" exit="out" variants={pageVariants}
       className="max-w-7xl mx-auto px-10 py-16 pb-32"
@@ -255,6 +298,7 @@ export default function Vault() {
                 isPlaying={isPlaying}
                 playTrack={playTrack}
                 togglePlay={togglePlay}
+                onResellClick={handleResellClick}
               />
             ))}
           </div>
@@ -272,5 +316,14 @@ export default function Vault() {
         )}
       </section>
     </motion.div>
+
+    {/* Resell Modal */}
+    <ResellModal
+      isOpen={isResellOpen}
+      onClose={() => { setIsResellOpen(false); setResellTarget(null); }}
+      nft={resellTarget}
+      onResellSuccess={handleResellSuccess}
+    />
+    </>
   );
 }

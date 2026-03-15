@@ -81,7 +81,7 @@ export default function Home() {
       let query = supabase.from('nfts').select(`
         *,
         artists ( artist_name, profile_image )
-      `);
+      `).eq('is_listed', true);
       
       const { data: allNfts } = await query;
       
@@ -112,6 +112,12 @@ export default function Home() {
   const handleOpenBid = (track) => {
     setSelectedTrackForBid(track);
     setIsBidModalOpen(true);
+  };
+
+  const handlePurchaseSuccess = (purchasedNftId) => {
+    // Remove the track from the local marketplace list immediately
+    setNfts(prev => prev.filter(n => n.nft_id !== purchasedNftId));
+    setIsBidModalOpen(false);
   };
 
   const isInitializing = useStore(state => state.isInitializing);
@@ -309,6 +315,7 @@ export default function Home() {
       isOpen={isBidModalOpen}
       onClose={() => setIsBidModalOpen(false)}
       track={selectedTrackForBid}
+      onPurchaseSuccess={handlePurchaseSuccess}
     />
     </>
   );

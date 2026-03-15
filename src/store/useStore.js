@@ -24,6 +24,12 @@ const useStore = create((set) => ({
       ? state.ownedNfts 
       : [...state.ownedNfts, nft] 
   })),
+  removeOwnedNft: (nftId) => set((state) => ({ 
+    ownedNfts: state.ownedNfts.filter(n => n.nft_id !== nftId)
+  })),
+  updateOwnedNft: (nft) => set((state) => ({ 
+    ownedNfts: state.ownedNfts.map(n => n.nft_id === nft.nft_id ? { ...n, ...nft } : n)
+  })),
 
   // User Minted Assets
   mintedNfts: [],
@@ -32,6 +38,9 @@ const useStore = create((set) => ({
     mintedNfts: state.mintedNfts.some(n => n.nft_id === nft.nft_id) 
       ? state.mintedNfts 
       : [...state.mintedNfts, nft] 
+  })),
+  updateMintedNft: (nft) => set((state) => ({
+    mintedNfts: state.mintedNfts.map(n => n.nft_id === nft.nft_id ? { ...n, ...nft } : n)
   })),
 
   setModalOpen: (isOpen) => set({ isAnyModalOpen: isOpen }),
