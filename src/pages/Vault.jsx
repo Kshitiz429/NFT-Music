@@ -11,6 +11,137 @@ const pageVariants = {
   out: { opacity: 0, scale: 0.98 }
 };
 
+// ─── Download states per card ─────────────────────────────────────────────────
+// 'idle' | 'downloading' | 'done' | 'error'
+
+async function downloadTrack(nft, setStatus) {
+  if (!nft.ipfs_audio_hash) {
+    setStatus('error');
+    setTimeout(() => setStatus('idle'), 3000);
+    return;
+  }
+
+  setStatus('downloading');
+  try {
+    const response = await fetch(nft.ipfs_audio_hash);
+    if (!response.ok) throw new Error('Fetch failed');
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    // Determine extension from MIME type or URL
+    const mimeType = blob.type || 'audio/mpeg';
+    const ext = mimeType.includes('wav') ? 'wav'
+              : mimeType.includes('ogg') ? 'ogg'
+              : mimeType.includes('flac') ? 'flac'
+              : 'mp3';
+
+    const fileName = `${nft.song_title || 'track'}.${ext}`
+      .replace(/[/\\?%*:|"<>]/g, '-'); // Sanitize filename
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+
+    setStatus('done');
+    setTimeout(() => setStatus('idle'), 4000);
+  } catch (err) {
+    console.error('Download failed:', err);
+    setStatus('error');
+    setTimeout(() => setStatus('idle'), 3000);
+  }
+}
+
+// ─── Individual Vault Card with download ─────────────────────────────────────
+function VaultCard({ nft, currentTrack, isPlaying, playTrack, togglePlay }) {
+  const [dlStatus, setDlStatus] = useState('idle'); // idle | downloading | done | error
+
+  const isActive = currentTrack?.nft_id === nft.nft_id;
+
+  const dlConfig = {
+    idle: {
+      icon: 'download',
+      label: 'Download',
+      className: 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-primary/30 hover:text-primary',
+    },
+    downloading: {
+      icon: null, // spinner
+      label: 'Downloading…',
+      className: 'bg-primary/10 border-primary/20 text-primary cursor-not-allowed',
+    },
+    done: {
+      icon: 'task_alt',
+      label: 'Downloaded',
+      className: 'bg-green-500/10 border-green-500/30 text-green-400',
+    },
+    error: {
+      icon: 'error',
+      label: 'Failed — Retry',
+      className: 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20',
+    },
+  }[dlStatus];
+
+  return (
+    <div className="group glass-panel p-5 rounded-[2.5rem] border border-white/5 hover:bg-white/5 hover:border-primary/20 transition-all duration-500">
+      {/* Cover Art */}
+      <div className="aspect-square rounded-[2rem] overflow-hidden mb-6 bg-black relative shadow-2xl">
+        <img
+          src={nft.ipfs_cover_hash}
+          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+          alt={nft.song_title}
+        />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              isActive ? togglePlay() : playTrack(nft);
+            }}
+            className="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+          >
+            <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+              {isActive && isPlaying ? 'pause' : 'play_arrow'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Track Info */}
+      <div className="px-2 mb-4">
+        <h4 className="font-headline font-bold text-xl text-white mb-1 group-hover:text-primary transition-colors truncate">
+          <Link to={`/track/${nft.nft_id}`} className="hover:underline">{nft.song_title}</Link>
+        </h4>
+        <p className="text-[10px] text-outline font-label uppercase tracking-widest font-bright">
+          {nft.genre || 'Soundscape'} • Value: {nft.price} {nft.currency}
+        </p>
+      </div>
+
+      {/* Download Button */}
+      <button
+        onClick={() => {
+          if (dlStatus === 'idle' || dlStatus === 'error') {
+            downloadTrack(nft, setDlStatus);
+          }
+        }}
+        disabled={dlStatus === 'downloading' || dlStatus === 'done'}
+        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-[10px] font-label uppercase tracking-widest font-black transition-all duration-300 ${dlConfig.className}`}
+      >
+        {dlStatus === 'downloading' ? (
+          <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
+            {dlConfig.icon}
+          </span>
+        )}
+        {dlConfig.label}
+      </button>
+    </div>
+  );
+}
+
 export default function Vault() {
   const user = useStore((state) => state.user);
   const isInitializing = useStore((state) => state.isInitializing);
@@ -117,32 +248,14 @@ export default function Vault() {
         ) : ownedNfts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {ownedNfts.map((nft) => (
-              <div key={nft.nft_id} className="group glass-panel p-5 rounded-[2.5rem] border border-white/5 hover:bg-white/5 hover:border-primary/20 transition-all duration-500">
-                <div className="aspect-square rounded-[2rem] overflow-hidden mb-6 bg-black relative shadow-2xl">
-                  <img src={nft.ipfs_cover_hash} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" alt={nft.song_title} />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                     <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        currentTrack?.nft_id === nft.nft_id ? togglePlay() : playTrack(nft);
-                      }}
-                      className="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.4)]"
-                     >
-                        <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                            {currentTrack?.nft_id === nft.nft_id && isPlaying ? 'pause' : 'play_arrow'}
-                        </span>
-                     </button>
-                  </div>
-                </div>
-                <div className="px-2">
-                  <h4 className="font-headline font-bold text-xl text-white mb-1 group-hover:text-primary transition-colors truncate">
-                    <Link to={`/track/${nft.nft_id}`} className="hover:underline">{nft.song_title}</Link>
-                  </h4>
-                  <p className="text-[10px] text-outline font-label uppercase tracking-widest font-bright">
-                     {nft.genre || 'Soundscape'} • Value: {nft.price} {nft.currency}
-                  </p>
-                </div>
-              </div>
+              <VaultCard
+                key={nft.nft_id}
+                nft={nft}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                playTrack={playTrack}
+                togglePlay={togglePlay}
+              />
             ))}
           </div>
         ) : (
