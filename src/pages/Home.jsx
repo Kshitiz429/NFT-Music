@@ -67,7 +67,7 @@ export default function Home() {
           .from('bids')
           .select('*')
           .or(`bidder_id.eq.${user.id},bidder_wallet.eq.${user.wallet_address}`);
-        if (data) setUserBids(data);
+        if (data) setUserBids(data.filter(b => b.status === 'active'));
       }
     };
     fetchBids();
