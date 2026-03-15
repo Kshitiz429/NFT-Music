@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useStore from '../store/useStore';
-import BidModal from '../components/BidModal';
+import PurchaseModal from '../components/PurchaseModal';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -305,10 +305,10 @@ export default function Home() {
       )}
     </motion.div>
 
-    <BidModal 
-      isOpen={isBidModalOpen} 
-      onClose={() => setIsBidModalOpen(false)} 
-      track={selectedTrackForBid} 
+    <PurchaseModal
+      isOpen={isBidModalOpen}
+      onClose={() => setIsBidModalOpen(false)}
+      track={selectedTrackForBid}
     />
     </>
   );

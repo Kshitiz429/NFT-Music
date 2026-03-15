@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useStore from '../store/useStore';
+import PurchaseModal from '../components/PurchaseModal';
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -26,8 +27,7 @@ export default function TrackDetail() {
   const togglePlay = useStore(state => state.togglePlay);
 
   const [displayCurrency, setDisplayCurrency] = useState('HLUSD');
-  const [isMinting, setIsMinting] = useState(false);
-  const [isMinted, setIsMinted] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
   const addOwnedNft = useStore(state => state.addOwnedNft);
   const ownedNfts = useStore(state => state.ownedNfts);
@@ -153,6 +153,7 @@ export default function TrackDetail() {
   if (!track) return <div className="min-h-screen flex items-center justify-center font-headline text-white/50">Loading Track Stream...</div>;
 
   return (
+    <>
     <motion.div
       initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition}
       className="max-w-6xl mx-auto p-10 pb-32"
@@ -316,16 +317,21 @@ export default function TrackDetail() {
                 </div>
               ) : (
                 <button 
-                  onClick={handleMint}
-                  disabled={isMinting}
-                  className="w-full bg-primary text-black font-headline font-extrabold py-5 rounded-2xl hover:scale-[1.02] transition-transform mb-4 uppercase tracking-widest text-sm disabled:opacity-50"
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  className="w-full bg-primary text-black font-headline font-extrabold py-5 rounded-2xl hover:scale-[1.02] transition-transform mb-4 uppercase tracking-widest text-sm"
                 >
-                  {isMinting ? 'Synchronizing...' : 'Collect Asset'}
+                  Collect Asset
                 </button>
               )}
            </div>
         </div>
       </div>
     </motion.div>
+    <PurchaseModal
+      isOpen={isPurchaseModalOpen}
+      onClose={() => setIsPurchaseModalOpen(false)}
+      track={track}
+    />
+    </>
   );
 }
